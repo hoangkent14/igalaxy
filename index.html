@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>iGalaxy – RandomFall 180s Boss (MonkeyPatch) v0.6g</title>
+  <style>
+    :root{
+      --bg1:#0066cc; --bg2:#727cd6; --panel:#0e1726; --border:#1f2a3a; --text:#e5e7eb;
+      --accent:#22d3ee; --accent2:#a78bfa; --gold:#fbbf24; --muted:#94a3b8; --danger:#f87171;
+      --green:#34d399; --yellow:#facc15;
+    }
+    *{box-sizing:border-box; user-select:none;}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg1),var(--bg2));}
+    body{
+      display:flex;align-items:center;justify-content:center;color:var(--text);
+      font-family:'Segoe UI',system-ui,sans-serif;
+      padding: 10px;
+    }
+
+    /* Khung chính: chừa chỗ cho badge trái & stats phải */
+    .wrap{
+      width:min(100%,768px);
+      display:flex;flex-direction:column;gap:10px;
+      position: relative;
+      padding-left: 120px;              /* chừa chỗ badgebar bên trái */
+      padding-right: 140px;             /* chừa chỗ stats bên phải */
+      padding-top: 20px;                /* thoáng phía trên */
+      margin: 0 auto;
+    }
+
+    .title{
+      text-align:center;font-weight:900;text-transform:uppercase;letter-spacing:.5px;
+      padding:10px;border-radius:12px;background:linear-gradient(90deg,#0e1726,#12213a);
+      border:1px solid var(--border);box-shadow:0 4px 15px rgba(0,0,0,.35);
+    }
+
+    /* Bảng điểm bám cạnh phải .wrap */
+    .stats {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 15px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      z-index: 10;
+      min-width: 100px;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      transition: all 0.2s ease;
+    }
+    .stat:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #22d3ee;
+      transform: translateX(-5px);
+    }
+    .stats .label {
+      font-size: 10px;
+      color: #a7b0d8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stats .val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #22d3ee;
+      text-shadow: 0 0 8px rgba(34,211,238,0.5);
+    }
+    .stats .val.gold{color:var(--gold)}
+
+    /* Board */
+    .board{
+      position:relative;border:2px solid var(--border);border-radius:12px;overflow:hidden;
+      background:#0066cc; aspect-ratio:3/4;
+      box-shadow:0 10px 30px rgba(0,0,0,.4), inset 0 0 40px rgba(255,255,255,.05);
+      cursor: grab;
+      touch-action: none; /* để drag mượt trên mobile */
+    }
+    .board:active{ cursor: grabbing; }
+    canvas{width:100%;height:100%;display:block}
+
+    /* Overlay nổi trên mọi thứ */
+    #overlay{
+      position:absolute;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);
+      display:flex;align-items:center;justify-content:center;z-index:999;transition:.25s;
+    }
+    #overlay.hidden{opacity:0;pointer-events:none}
+    .panel{text-align:center}
+    .panel h2{margin:0 0 8px;font-size:28px;letter-spacing:1px}
+    .panel p{margin:6px 0 12px;color:#cbd5e1}
+    .btn{background:var(--accent);color:#04262a;border:none;border-radius:12px;padding:12px 24px;
+         font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(34,211,238,.25);font-size:16px}
+    .btn:active{transform:scale(.97)}
+    .subbtn{margin-left:8px;background:var(--accent2);color:#0b0121}
+
+    /* Badgebar xếp dọc bám trái .wrap (cân giữa dọc) */
+    .badgebar{
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      left: 8px;
+      display: flex; flex-direction: column; gap: 6px;
+      z-index: 20; pointer-events: none;
+    }
+    .badgebar .badge{
+      pointer-events: auto;
+      background:#0e1b2d;border:1px solid #17304a;color:#a5b4fc;
+      border-radius:999px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;
+      font-size:12px; white-space: nowrap;
+    }
+    .dot{width:8px;height:8px;border-radius:50%}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Bảng điểm bám phải -->
+    <div class="stats">
+      <div class="stat"><span class="label">Điểm</span><span id="score" class="val">0</span></div>
+      <div class="stat"><span class="label">Mạng</span><span id="lives" class="val">3</span></div>
+      <div class="stat"><span class="label">Màn</span><span id="level" class="val">1</span></div>
+      <div class="stat"><span class="label">Kỷ lục</span><span id="best" class="val gold">0</span></div>
+    </div>
+
+    <!-- Badgebar xếp dọc bám trái .wrap -->
+    <div class="badgebar">
+      <div class="badge"><span class="dot" style="background:#34d399"></span>Shield</div>
+      <div class="badge"><span class="dot" style="background:#22d3ee"></span>Rapid</div>
+      <div class="badge"><span class="dot" style="background:#facc15"></span>Spread</div>
+      <div class="badge"><span class="dot" style="background:#a78bfa"></span>Drone</div>
+      <div class="badge"><span class="dot" style="background:#f87171"></span>Boss</div>
+    </div>
+
+    <div class="board" id="board">
+      <canvas id="game"></canvas>
+      <div id="overlay">
+        <div class="panel">
+          <h2 id="title">iGalaxy dự án S by kentmagic v0.6f</h2>
+          <p id="desc">
+            Kéo/Chạm để di chuyển, giữ chuột trái/chạm = FIRE.
+            A/D/W/S hoặc phím mũi tên để di chuyển. 
+            Space: giữ để bắn.1/2/3 đổi skin tàu (Blue/Red/Green).
+           </p>
+          <button class="btn" onclick="toggleGame()">BẮT ĐẦU</button>
+          <button class="btn subbtn" onclick="resetBest()">XÓA KỶ LỤC</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="js/00_config_canvas.js" defer></script>
+<script src="js/01_state.js" defer></script>
+<script src="js/02_ui.js" defer></script>
+<script src="js/03_init.js" defer></script>
+<script src="js/04_waves_boss.js" defer></script>
+<script src="js/05_input.js" defer></script>
+<script src="js/06_shooting_powers.js" defer></script>
+<script src="js/07_collisions_particles.js" defer></script>
+<script src="js/08_update.js" defer></script>
+<script src="js/09_hit_player.js" defer></script>
+<script src="js/10_rendering.js" defer></script>
+<script src="js/11_loop_overlay.js" defer></script>
+<script src="js/12_sprite_inject.js" defer></script>
+<script src="js/13_disable_hitflash.js" defer></script>
+<script src="js/99_randomfall_monkey.js" defer></script>
+</body>
+</html>
